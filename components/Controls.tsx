@@ -26,20 +26,32 @@ interface ControlsProps {
   onSave: () => void;
   onClear: () => void;
   onRequestNotifications: () => void;
+  isPipSupported: boolean;
+  isPipOpen: boolean;
+  onOpenPip: () => void;
 }
 
-const Controls: React.FC<ControlsProps> = ({ isRecording, hasPoints, onStart, onStop, onSave, onClear, onRequestNotifications }) => {
+const Controls: React.FC<ControlsProps> = ({ isRecording, hasPoints, onStart, onStop, onSave, onClear, onRequestNotifications, isPipSupported, isPipOpen, onOpenPip }) => {
   return (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-gray-700">
-       <div className="flex flex-wrap gap-3 items-center">
-        {!isRecording ? (
-          <Button onClick={onStart} variant="primary">Start Ride</Button>
-        ) : (
-          <Button onClick={onStop} className="bg-red-700 hover:bg-red-800 focus:ring-red-600 text-white animate-pulse">End Ride</Button>
-        )}
-        <Button onClick={onSave} disabled={!hasPoints || isRecording}>Save Session</Button>
-        <Button onClick={onRequestNotifications}>Enable Notifications</Button>
-        <Button onClick={onClear} variant="danger" disabled={!hasPoints || isRecording}>Clear Temp</Button>
+    <div className="bg-black/20 backdrop-blur-md rounded-2xl p-5 shadow-lg border border-white/10">
+       <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center">
+            {!isRecording ? (
+              <Button onClick={onStart} variant="primary">Start Ride</Button>
+            ) : (
+              <Button onClick={onStop} className="bg-red-700 hover:bg-red-800 focus:ring-red-600 text-white animate-pulse">End Ride</Button>
+            )}
+            <Button onClick={onSave} disabled={!hasPoints || isRecording}>Save Session</Button>
+            <Button onClick={onClear} variant="danger" disabled={!hasPoints || isRecording}>Clear Temp</Button>
+        </div>
+        <div className="flex flex-wrap gap-3 items-center">
+            {isPipSupported && (
+              <Button onClick={onOpenPip} disabled={isPipOpen}>
+                {isPipOpen ? 'Mini Open' : 'Mini Dashboard'}
+              </Button>
+            )}
+            <Button onClick={onRequestNotifications}>Notifications</Button>
+        </div>
       </div>
     </div>
   );

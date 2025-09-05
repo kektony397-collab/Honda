@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom/client';
 import type { PositionEntry, SavedSession } from './types';
-import { haversineDistance, polygonArea, fmtNumber } from './utils/geolocation';
+import { haversineDistance, polygonArea } from './utils/geolocation';
 import Header from './components/Header';
 import Controls from './components/Controls';
 import Dashboard from './components/StatsGrid'; // Renamed from StatsGrid
@@ -39,11 +40,23 @@ const App: React.FC = () => {
 
   // Fuel Management State
   const [tankCapacity, setTankCapacity] = usePersistentState<number>('fuel_tank_capacity', 8); // Honda Dream Yug default
-  const [avgMileage, setAvgMileage] = usePersistentState<number>('fuel_avg_mileage', 44); // Honda Dream Yug default
+  const [avgMileage, setAvgMileage] = usePersistentState<number>('fuel_avg_mileage', 42); // Adjusted for engine wear
   const [currentFuel, setCurrentFuel] = usePersistentState<number>('fuel_current', 8);
   
   // Stop detection
   const stopDetectionTimer = useRef<number | null>(null);
+
+  // Picture-in-Picture State
+  const pipWindowRef = useRef<Window | null>(null);
+  const pipRootRef = useRef<ReactDOM.Root | null>(null);
+  const [isPipOpen, setIsPipOpen] = useState(false);
+  const [isPipSupported, setIsPipSupported] = useState(false);
+
+  useEffect(() => {
+    if ('documentPictureInPicture' in window) {
+      setIsPipSupported(true);
+    }
+  }, []);
   
   // Derived stats
   const totalDistanceMeters = positions.reduce((acc, cur, idx) => {
@@ -74,6 +87,25 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions, avgMileage]);
 
+  // Effect to update the PiP window whenever stats change
+  useEffect(() => {
+    if (isPipOpen && pipRootRef.current) {
+      pipRootRef.current.render(
+        <React.StrictMode>
+            <Dashboard
+                totalDistanceKm={totalDistanceKm}
+                lastSpeed={lastSpeed}
+                avgSpeedKmh={avgSpeedKmh}
+                currentFuelL={currentFuel}
+                tankCapacityL={tankCapacity}
+                estimatedRangeKm={estimatedRangeKm}
+            />
+        </React.StrictMode>
+      );
+    }
+  }, [isPipOpen, totalDistanceKm, lastSpeed, avgSpeedKmh, currentFuel, tankCapacity, estimatedRangeKm]);
+
+
   // Clear watch on unmount
   useEffect(() => {
     return () => {
@@ -82,6 +114,9 @@ const App: React.FC = () => {
       }
       if (stopDetectionTimer.current) {
         clearTimeout(stopDetectionTimer.current);
+      }
+      if (pipWindowRef.current) {
+        pipWindowRef.current.close();
       }
     };
   }, [watchId]);
@@ -94,6 +129,42 @@ const App: React.FC = () => {
        });
      }
   }, []);
+
+  const openPipDashboard = useCallback(async () => {
+    if (!isPipSupported || pipWindowRef.current) return;
+    try {
+      const pip = await (window as any).documentPictureInPicture.requestWindow({
+        width: 420,
+        height: 380,
+      });
+      pipWindowRef.current = pip;
+
+      // Copy styles
+      document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
+        pip.document.head.appendChild(el.cloneNode(true));
+      });
+
+      // Set up body and root element
+      pip.document.body.className = "bg-gray-900 text-gray-200 p-4 font-sans";
+      const pipRootEl = pip.document.createElement('div');
+      pip.document.body.appendChild(pipRootEl);
+      
+      pipRootRef.current = ReactDOM.createRoot(pipRootEl);
+      setIsPipOpen(true);
+      
+      // Listen for the window closing
+      pip.addEventListener('pagehide', () => {
+        pipRootRef.current?.unmount();
+        pipRootRef.current = null;
+        pipWindowRef.current = null;
+        setIsPipOpen(false);
+      }, { once: true });
+
+    } catch(error) {
+        console.error("Picture-in-Picture Error:", error);
+        alert("Could not open Mini Dashboard. Your browser might not support it or permission was denied.");
+    }
+  }, [isPipSupported]);
   
   const startRecording = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -228,6 +299,9 @@ const App: React.FC = () => {
             onSave={saveSession}
             onClear={clearTemp}
             onRequestNotifications={requestNotifications}
+            isPipSupported={isPipSupported}
+            isPipOpen={isPipOpen}
+            onOpenPip={openPipDashboard}
           />
           <Dashboard
             totalDistanceKm={totalDistanceKm}
