@@ -1,0 +1,5 @@
+{
+  "name": "Bike GPS Dashboard",
+  "description": "A futuristic, mobile-friendly GPS dashboard for your bike. It tracks speed, distance, and fuel consumption, with features like stop-detection notifications and an efficiency indicator. Tailored for the Honda Dream Yug 2014.",
+  "requestFramePermissions": []
+}
